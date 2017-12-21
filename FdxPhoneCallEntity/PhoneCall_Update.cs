@@ -1,5 +1,6 @@
 ﻿using Microsoft.Crm.Sdk.Messages;
 using Microsoft.Xrm.Sdk;
+using Microsoft.Xrm.Sdk.Query;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -9,7 +10,7 @@ using System.Threading.Tasks;
 
 namespace FdxPhoneCallEntity
 {
-    public class PhoneCall_Create : IPlugin
+    public class PhoneCall_Update : IPlugin
     {
         public void Execute(IServiceProvider serviceProvider)
         {
@@ -42,50 +43,42 @@ namespace FdxPhoneCallEntity
                     WhoAmIResponse response = (WhoAmIResponse)service.Execute(new WhoAmIRequest());
 
                     step = 3;
-                    if (phonecallEntity.Attributes.Contains("directioncode"))
+                    step = 4;
+                    if (phonecallEntity.Attributes.Contains("to"))
                     {
-                        step = 4;
-                        if (((Boolean)phonecallEntity["directioncode"] == false) && (phonecallEntity.Attributes.Contains("to")))
+                        step = 5;
+                        EntityCollection fromCollection = (EntityCollection)phonecallEntity.Attributes["to"];
+                        EntityReference userIdRef = new EntityReference();
+                        foreach (var c in fromCollection.Entities)
                         {
-                            step = 5;
-                            EntityCollection fromCollection = (EntityCollection)phonecallEntity.Attributes["to"];
-                            EntityReference userIdRef = new EntityReference();
-                            foreach (var c in fromCollection.Entities)
+                            if (c.Contains("partyid"))
                             {
-                                if (c.Contains("partyid"))
-                                {
-                                    userIdRef = (EntityReference)c.Attributes["partyid"];
-                                }
-                            }
-
-                            if (userIdRef.LogicalName == "systemuser")
-                            {
-                                phonecallEntity.Attributes["fdx_caller"] = userIdRef;
+                                userIdRef = (EntityReference)c.Attributes["partyid"];
                             }
                         }
-                        else if(((Boolean)phonecallEntity["directioncode"] == true) && (phonecallEntity.Attributes.Contains("from")))
-                        {
-                            step = 6;
-                            EntityCollection fromCollection = (EntityCollection)phonecallEntity.Attributes["from"];
-                            EntityReference userIdRef = new EntityReference();
-                            foreach (var c in fromCollection.Entities)
-                            {
-                                if (c.Contains("partyid"))
-                                {
-                                    userIdRef = (EntityReference)c.Attributes["partyid"];
-                                }
-                            }
 
-                            if (userIdRef.LogicalName == "systemuser")
-                            {
-                                phonecallEntity.Attributes["fdx_caller"] = userIdRef;
-                            }
+                        if (userIdRef.LogicalName == "systemuser")
+                        {
+                            phonecallEntity.Attributes["fdx_caller"] = userIdRef;
                         }
                     }
-
-                    if (step == 3 || step == 4)
+                    if (phonecallEntity.Attributes.Contains("from"))
                     {
-                        phonecallEntity.Attributes["fdx_caller"] = new EntityReference("systemuser", ((EntityReference)phonecallEntity.Attributes["ownerid"]).Id);
+                        step = 6;
+                        EntityCollection fromCollection = (EntityCollection)phonecallEntity.Attributes["from"];
+                        EntityReference userIdRef = new EntityReference();
+                        foreach (var c in fromCollection.Entities)
+                        {
+                            if (c.Contains("partyid"))
+                            {
+                                userIdRef = (EntityReference)c.Attributes["partyid"];
+                            }
+                        }
+
+                        if (userIdRef.LogicalName == "systemuser")
+                        {
+                            phonecallEntity.Attributes["fdx_caller"] = userIdRef;
+                        }
                     }
                 }
                 catch (FaultException<OrganizationServiceFault> ex)
